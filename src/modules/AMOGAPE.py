@@ -198,7 +198,7 @@ class AMOGAPE():
         
         # Define limits of update
         #limits = limitscale*self.inputlimits
-        print('LIM:', np.diff(self.inputlimits)*(1-limitscale)*0.7)
+        #print('LIM:', np.diff(self.inputlimits)*(1-limitscale)*0.7)
         limits = self.inputlimits*limitscale + np.diff(self.inputlimits)*(1-limitscale)*0.7
         x0 = np.random.sample(self.D)*np.diff(limits).T + limits[:,0]
         bnds = tuple( ((minlim ,maxlim) for minlim, maxlim in limits) )
