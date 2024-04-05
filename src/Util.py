@@ -29,6 +29,8 @@ def lhs_generate_input_data(lims, n, dim=2):
     diffs = np.diff(lims)
     Xt = lhs(dim, n)*diffs.T + lims[:,0].T 
 
+    # self.data['X'] = lhs(self.D, self.N)*self.limdiffs.T + self.inputlimits[:,0].T
+
     return Xt
 
 ########################################################
@@ -48,7 +50,7 @@ def load_data(name, path='data/'):
         _description_
     """
     
-    npz = np.load(path + name)
+    npz = np.load(path + '/' + name)
 
     Xt = npz['arr_0']
     Yt = npz['arr_1']

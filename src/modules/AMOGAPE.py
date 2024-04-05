@@ -250,7 +250,8 @@ class AMOGAPE():
             self.GEOMETRY = self.GEOMETRY._value
         self.tracker[self.N] = {'G': self.GEOMETRY, 'D': self.DIVERSITY,
                 'lengthscale': [self.emudict['emu'+str(p)].lengthscale for p in range(self.P)] ,
-                'likelihood_sigma': [self.emudict['emu'+str(p)].likelihood_variance for p in range(self.P)]}
+                'likelihood_sigma': [self.emudict['emu'+str(p)].likelihood_variance for p in range(self.P)],
+                'X': self.data['X'], 'Y': self.data['Y']}
 
         ''' Not sure if this line is needed???'''
         #self.tracker[self.N]['x'] = sol.x
@@ -263,18 +264,36 @@ class AMOGAPE():
         """ LHS update step:
         Refresh entire database generating N_t new datapoints
         """
+        '''
         self.N += 1
-        self.data['X'] = lhs(D, self.N)*self.limdiffs.T + self.inputlimits[:,0].T
+        self.data['X'] = lhs(self.D, self.N)*self.limdiffs.T + self.inputlimits[:,0].T
         
-        Y = np.zeros([self.N, P])
+        Y = np.zeros([self.N, self.P])
         for i in range(self.N):
-            Y[i,:] = self.model(self.data['X'][i,:].reshape([1,D])).reshape([1,P])
+            Y[i,:] = self.model(self.data['X'][i,:].reshape([1,self.D])).reshape([1,self.P])
         self.data['Y'] = Y
         # Retrain emulators
         self.train_emulators()
         self.tracker[self.N] = { 'lengthscale': [self.emudict['emu'+str(p)].lengthscale for p in range(self.P)] ,
                 'likelihood_sigma': [self.emudict['emu'+str(p)].likelihood_variance for p in range(self.P)]}
+        '''
+        self.N += 1
+        #self.data['X'] = lhs(self.D, self.N)*self.limdiffs.T + self.inputlimits[:,0].T
+        pp = lhs(self.D, 1)*self.limdiffs.T + self.inputlimits[:,0].T
+        #print('####### self.data[X]', pp)
+        self.data['X'] = np.concatenate( [ self.data['X'], pp.reshape([1,self.D]) ], 0 )
+        #self.data['X'] = pp
+        print('####### self.data[X]', self.data['X'])
         
+        Y = np.zeros([self.N, self.P])
+        for i in range(self.N):
+            Y[i,:] = self.model(self.data['X'][i,:].reshape([1,self.D])).reshape([1,self.P])
+        self.data['Y'] = Y
+        # Retrain emulators
+        self.train_emulators()
+        self.tracker[self.N] = { 'lengthscale': [self.emudict['emu'+str(p)].lengthscale for p in range(self.P)] ,
+                'likelihood_sigma': [self.emudict['emu'+str(p)].likelihood_variance for p in range(self.P)],
+                'X': self.data['X'], 'Y': self.data['Y']}
         
     def update_gauss(self):
         """ LHS update step:
@@ -286,11 +305,15 @@ class AMOGAPE():
         while not (lims[0,0] < Xnew[0] < lims[0,1]) & (lims[1,0] < Xnew[1] < lims[1,1]):
             Xnew = self.GAUSSIAN.rvs()
         self.data['X'] = np.concatenate( [ self.data['X'], Xnew.reshape([1,self.D]) ], 0 )
-        self.data['Y'] = np.concatenate( [ self.data['Y'], self.model(Xnew.reshape([1,self.D])).reshape([1,P]) ], 0 )
+
+        print('####### RANDOM self.data[X]', self.data['X'])
+
+        self.data['Y'] = np.concatenate( [ self.data['Y'], self.model(Xnew.reshape([1,self.D])).reshape([1,self.P]) ], 0 )
         # Retrain emulators
         self.train_emulators()
         self.tracker[self.N] = { 'lengthscale': [self.emudict['emu'+str(p)].lengthscale for p in range(self.P)] ,
-                'likelihood_sigma': [self.emudict['emu'+str(p)].likelihood_variance for p in range(self.P)]}
+                'likelihood_sigma': [self.emudict['emu'+str(p)].likelihood_variance for p in range(self.P)],
+                'X': self.data['X'], 'Y': self.data['Y']}
     
     def test(self,Xt,Yt,pca=0):
         """ Compute RMSE of current emulator on input (Xt,Yt) input grid 

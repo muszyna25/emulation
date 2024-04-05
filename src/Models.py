@@ -3,6 +3,8 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+import matplotlib as mpl
+import matplotlib.cm as cm
 
 import src.Util as ut
 
@@ -132,7 +134,9 @@ def pyrcel_model(X):
 
         # To do: a function that allows to switch between one mode and multi mode distributions.
         #aerso_distr = setup_aerosols_distribution(pv)
-        aerosol_distribution =  pm.AerosolSpecies('sulfate', pm.Lognorm(mu=pv[0], sigma=pv[1], N=pv[2]), kappa=pv[3], bins=200)
+
+        #aerosol_distribution =  pm.AerosolSpecies('sulfate', pm.Lognorm(mu=pv[0], sigma=pv[1], N=pv[2]), kappa=pv[3], bins=200)
+        aerosol_distribution =  pm.AerosolSpecies('sulfate', pm.Lognorm(mu=pv[0], sigma=pv[1], N=850), kappa=0.15, bins=200)
 
         initial_aerosols = [aerosol_distribution]
         
@@ -143,7 +147,7 @@ def pyrcel_model(X):
         V0 = 1.0
 
         dt = 1.0 # timestep, seconds
-        t_end = 50./V0 # end time, seconds... 250 meter simulation
+        t_end = 80./V0 # end time, seconds... 250 meter simulation
         
         model = pm.ParcelModel(initial_aerosols, V0, T0, S0, P0, console=False, accom=0.3)
         parcel_trace, aerosol_traces = model.run(t_end, dt=dt, solver="cvode", terminate=True)
@@ -201,12 +205,13 @@ def model(X):
     S0 = -0.02  # Supersaturation, 1-RH (98% here)
     V0 = 1.0
     
-    aerosol =  pm.AerosolSpecies('sulfate', pm.Lognorm(mu=X[0][0], sigma=X[0][1], N=X[0][2]), kappa=X[0][3], bins=200)
+    #aerosol =  pm.AerosolSpecies('sulfate', pm.Lognorm(mu=X[0][0], sigma=X[0][1], N=X[0][2]), kappa=X[0][3], bins=200)
+    aerosol =  pm.AerosolSpecies('sulfate', pm.Lognorm(mu=X[0][0], sigma=X[0][1], N=850), kappa=0.15, bins=200)
     
     initial_aerosols = [aerosol]
         
     dt = 1.0 # timestep, seconds
-    t_end = 50./V0# end time, seconds... 250 meter simulation
+    t_end = 80./V0# end time, seconds... 250 meter simulation
         
     model = pm.ParcelModel(initial_aerosols, V0, T0, S0, P0, console=False, accom=0.3)
     parcel_trace, aerosol_traces = model.run(t_end, dt=dt, solver="cvode", terminate=True)
@@ -305,17 +310,57 @@ def plot_fit(amo, lims):
     grid0 = np.linspace(lims[0][0],lims[0][1],M).reshape(M,1); 
     grid1 = np.linspace(lims[1][0],lims[1][1],M).reshape(M,1);
     XX1,XX2 = np.meshgrid(grid0,grid1)
-    
+
+    print('xxxx', amo.data['X'])
+    #print('predict', amo.emudict['emu0'].predict(amo.data['X']).ravel())
+    #print('predict', [[amo.emudict['emu0'].predict( np.array([amo.data['X'][i,j], amo.data['Y'][i,j] ]).reshape(1,2) )[0,0] for i in range(M)] for j in range(M)])
+    ax.scatter3D(amo.data['X'][:,0], amo.data['X'][:,1], amo.data['Y'], marker='.', alpha=0.4, c='r')
+
     # amo.emudict['emu0'] I will have many emulator if P >= 2 and need to change 'emuXXX'.
     Z = [[amo.emudict['emu0'].predict( np.array([XX1[i,j], XX2[i,j] ]).reshape(1,2) )[0,0] for i in range(M)] for j in range(M)]
     #Z = [[amo.emudict['emu0'].predict( np.array([XX1[i,j], XX2[i,j] ]).reshape(1,3) )[0,0] for i in range(M)] for j in range(M)]
     Z = np.array(Z).T
     
-    #ax.plot_surface(XX1, XX2, Z, rstride=1, cstride=1, alpha=0.3, cmap='jet')
-    ax.plot_surface(XX1, XX2, Z, rstride=1, cstride=1, alpha=0.3)
-    #ax.scatter3D(XX1, XX2, Z, marker='.', alpha=0.4, c='r')
+    min_val, max_val = min(amo.data['Y']), max(amo.data['Y'])
+
+    # use the coolwarm colormap that is built-in, and goes from blue to red
+    cmap = mpl.cm.coolwarm
+    norm = mpl.colors.Normalize(vmin=min_val, vmax=max_val)
+
+    ax.plot_surface(XX1, XX2, Z, rstride=1, cstride=1, alpha=0.9, cmap='YlGnBu')
+    #ax.plot_surface(XX1, XX2, Z, rstride=1, cstride=1, alpha=0.6, cmap=cmap, norm=norm)
+
     ax.set_xlabel(params[0]), ax.set_ylabel(params[1]), ax.set_zlabel(params[2], labelpad=1.0)
     
+########################################################
+def plot_2d(amo, lims):
+    fig, ax = plt.subplots(figsize=[10,8])
+    #ax = fig.add_subplot(1, 3, 3)
+    
+    M = 30
+    lim0 = np.linspace(lims[0][0],lims[0][1],M)
+    lim1 = np.linspace(lims[1][0],lims[1][1], M)
+    x0, x1 = np.meshgrid(lim0, lim1)
+    #ack = [[ np.float64( acq(np.array([[ x0[i, j], x1[i, j] ]])).item() )
+    #        for i in range(M)] for j in range(M)]
+    #ack = np.array(ack).T
+    #print('ACK', ack)
+    Z = [[amo.emudict['emu0'].predict( np.array([x0[i,j], x1[i,j] ]).reshape(1,2) )[0,0] for i in range(M)] for j in range(M)]
+
+    #im=ax.imshow(Z, origin='lower',extent=[lims[0][0],lims[0][1],lims[1][0],lims[1][1]], interpolation='gaussian', aspect='auto')
+    im = ax.contourf(x0, x1, Z, cmap=cm.PuBu_r)
+    ax.scatter(amo.data['X'][:,0], amo.data['X'][:,1])
+
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes('right', size='5%', pad=0.1)
+    fig.colorbar(im, cax=cax, orientation='vertical')
+    #cax = fig.add_axes([0.67, 0.1, 0.5, 0.05])
+    #fig.colorbar(im, cax=cax, orientation='vertical')
+    
+    ax.set_ylabel('x'), ax.set_xlabel('y') 
+    
+    plt.show()
+
 ########################################################
 def plot_acq_func(Xt, Yt, amo, acq, lims, limitscale):
     """plot_acq_func _summary_
@@ -367,3 +412,55 @@ def plot_acq_func(Xt, Yt, amo, acq, lims, limitscale):
     
     print('RMSE: ',amo.test(Xt,Yt))
     plt.show()
+
+
+def reduced_acq_func(Xt, amo, acq, ranges, it):
+
+    lims = ranges
+
+    fig = plt.figure(figsize=[10,8])
+    ax = fig.add_subplot(1, 1, 1)
+    
+    M = 30
+    lim0 = np.linspace(lims[0][0],lims[0][1],M)
+    lim1 = np.linspace(lims[1][0],lims[1][1], M)
+
+    x0, x1 = np.meshgrid(lim0, lim1)
+
+    #print(type(acq), acq)
+
+    ack = [[ np.float64(acq(np.array([[ x0[i, j], x1[i, j] ]])).item()) for i in range(M)] for j in range(M)]
+    #print(type(ack), ack)
+    
+    #''''
+    ack = np.array(ack).T
+    #print('ACK', ack)
+
+    im=ax.imshow(ack, origin='lower',extent=[lims[0][0],lims[0][1],lims[1][0],lims[1][1]], interpolation='gaussian', aspect='auto')
+
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes('right', size='5%', pad=0.1)
+    fig.colorbar(im, cax=cax, orientation='vertical')
+    #cax = fig.add_axes([0.67, 0.1, 0.5, 0.05])
+    #fig.colorbar(im, cax=cax, orientation='vertical')
+    
+    ax.set_ylabel('x'), ax.set_xlabel('y') 
+    ax.set_title("Acqusition function A(x)")
+
+    ax.scatter(amo.data['X'][:,0], amo.data['X'][:,1], alpha=1, s=50, c='red')
+    ax.scatter(Xt[:,0], Xt[:,1], alpha=1, s=50, c='red')
+    ax.set_ylabel('x'), ax.set_xlabel('y') 
+    ax.set_xlim(lims[0]), ax.set_ylim(lims[1])
+
+    #plt.show()
+
+    plt.savefig(str(it)+".png") 
+
+    #'''
+    # Update
+    #new = amo.update(limitscale, acq)
+    #print( amo.emudict['emu0'].likelihood_variance )
+    #ax.scatter(new[0],new[1],s=70,color='magenta',alpha=1)
+    
+    #print('RMSE: ',amo.test(Xt,Yt))
+    #plt.show()
