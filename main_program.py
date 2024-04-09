@@ -14,71 +14,6 @@ from os.path import isfile
 
 from src.modules.AMOGAPE import AMOGAPE
 
-def amogape():
-     # Input dimension
-    D=int(len(param_names))
-    #Output dimension
-    P=1
-
-    print('Xt size:',Xt.shape)
-    lmeans, lstds = [], []
-    for i in range(0, int(Xt.shape[1])):
-        lmeans.append(np.mean(Xt[:,i]))
-        lstds.append(np.std(Xt[:,i]))
-
-    means = np.array(lmeans)
-    stdevs = np.array(lstds)
-    print(means, stdevs)
-
-    startdata={}
-    startdata['X']=Xt
-    startdata['Y']=Yt #*1000 # I need to scale this and the output of model(x), but I forgot to do that.
-
-    amo = AMOGAPE(mp.model, D=D, P=P, means=means, stdevs=stdevs, inputlimits=ranges, startdata=startdata)
-    acq = amo.A_add_D #amo.A_add_D_prod_G #amo.A_prod_D_prod_G
-
-    iter_error = []
-    limitscale = 1.0
-    rate_means = []
-    rate_stds = []
-    #random_rmse = []
-    for run in range(30):    
-        print('\n ITERATION: ', run)
-        # Update
-        new = amo.update(limitscale, acq)
-        #amo.force_likelihoodnoise(1e-9)
-
-        #print(amo.data['X'][:,0].shape, Xt[:,0].shape)
-        #emup = amo.emudict['emu0']
-        #Yp = emup.predict(amo.data['X'][:,0]).ravel()
-        #print(Yp, Yt)
-
-        #plt.figure()
-        #plt.scatter(Xt[:,0],Yt, c='b', alpha=0.2)
-        #plt.scatter(amo.data['X'][:,0],Yp, c='r', alpha=0.5)
-        #plt.show()
-
-        #print(amo.emudict['emu0'].likelihood_variance)
-        rmse = amo.test(Xt,Yt)
-        print('RMSE: ', rmse)
-        if not run%10:
-            iter_error.append(rmse)
-            #random_rmse.append(rmse1)
-            '''
-            lstdstmp = []
-            for i in range(0, int(amo.data['X'].shape[1])):
-                lstdstmp.append(np.std(amo.data['X'][:,i]))
-            amo.stdevs = np.array(lstdstmp)
-            '''
-        print('Stdevs:', amo.stdevs)
-        if not run%5:
-            #amo.means = amo.means*np.exp(-0.5*1)
-            amo.stdevs = amo.stdevs*np.exp(-0.1*1)
-            rate_means.append(amo.means)
-            rate_stds.append(amo.stdevs)
-        
-        mp.reduced_acq_func(Xt, amo, acq, ranges, run)
-
 if __name__ == '__main__':
 
 ###########################################
@@ -86,7 +21,7 @@ if __name__ == '__main__':
 #   Generate data
 #
 ###########################################
-    exp_id = str(1091)
+    exp_id = str(1111)
 
     #param_names = ['mu', 'sigma', 'nc', 'kappa']
     #ranges = np.array([[0.02, 0.1], [1.0, 2.5], [800, 1000], [0.4, 0.7]])
@@ -101,6 +36,7 @@ if __name__ == '__main__':
     
     #if isfile('data/' + exp_name):
     exp_dir = os.path.join(parent_dir, exp_id)
+    '''
     if os.path.isdir(exp_dir):
         print(exp_dir + '/' + exp_name)
         Xt, Yt = ut.load_data(exp_name, exp_dir)
@@ -116,6 +52,17 @@ if __name__ == '__main__':
         fn = os.path.join(exp_dir, exp_name)
         np.savez(fn, Xt, Yt)
         print('generated data...', Xt.shape, Yt.shape)
+    '''
+
+    setup_multimode_aerosols = {"sulfate": {"active": True, "mus": np.array([0.025, 0.005, 0.035, 0.8]), "sigmas": np.array([2.8, 1.7, 2.2, 2.9]), "Ns": np.array([950, 850, 500, 600]), "kappas": 0.45},
+                                "sea_salt": {"active": True, "mus": np.array([0.025, 0.005, 0.035, 0.8]), "sigmas": np.array([2.8, 1.7, 2.2, 2.9]), "Ns": np.array([950, 850, 500, 600]), "kappas": 1.2}
+                                }
+
+    for k in range(0, nsamples):
+        Xt = ut.lhs_generate_input_data(ranges, 1, dim=int(len(param_names))) # change param_names based on dictionary
+        print(Xt)
+        #mp.universal_model(X=Xt, d_aer_species={}) # use same function in AMOGAPE() by simply passing only Xt as the arg
+        mp.universal_model(X=Xt, d_aer_species=setup_multimode_aerosols)
 
 ###########################################
 #
@@ -123,6 +70,7 @@ if __name__ == '__main__':
 #
 ###########################################
     
+    '''
     # Input dimension
     D=int(len(param_names))
     #Output dimension
@@ -158,7 +106,7 @@ if __name__ == '__main__':
     for run in range(N_ITER):    
         print('\n ITERATION: ', run)
 
-        if not run%10:
+        if not run%5:
             amo_ae.stdevs = amo_ae.stdevs*np.exp(-0.5*1)
 
         #if not run%10:
@@ -186,6 +134,7 @@ if __name__ == '__main__':
     np.save(exp_dir + '/' + 'emulator_ae.npy', amo_ae, allow_pickle=True)
     np.save(exp_dir + '/' + 'emulator_rnd_gauss.npy', amo_rnd_gauss, allow_pickle=True)
     np.save(exp_dir + '/' + 'emulator_lhs.npy', amo_lhs, allow_pickle=True)
+    '''
 
     '''
     #mp.plot_fit(amo_ae, ranges)

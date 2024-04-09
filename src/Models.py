@@ -66,6 +66,66 @@ def setup_aerosols_distribution(params_vals, distribution_type='single'):
     return aers
 
 ########################################################
+########################################################
+
+def universal_model(X, d_aer_species=None, save_output=False):
+
+    print("\n ****** PARCEL MODEL STARTS... ******")
+    print("\n Input X size: ", X.shape)
+
+    initial_aerosols = []
+
+    if d_aer_species is None:
+        aerosol =  pm.AerosolSpecies('sulfate', pm.MultiModeLognorm(mus=mus, sigmas=sigmas , Ns=Ns), kappa=0.45, bins=300)
+        #X[0] and X[0][1]
+    else:
+        ## E.g., How do I handle a case when I use two out of four parameters??
+        for k in list(d_aer_species.keys()):
+            species = d_aer_species[k]
+            if species["active"]:
+                mus = species['mus']
+                sigmas = species['sigmas']
+                Ns = species['Ns']
+                kappa = species['kappas']
+                aerosol =  pm.AerosolSpecies(k, pm.MultiModeLognorm(mus=mus, sigmas=sigmas , Ns=Ns), kappa=kappa, bins=300)
+                initial_aerosols.append(aerosol)
+
+    print("\n INITIAL AEROSOLS: ", initial_aerosols)
+
+    # Fixed
+    P0 = 77500. # Pressure, Pa
+    T0 = 274.   # Temperature, K
+    S0 = -0.02  # Supersaturation, 1-RH (98% here)
+    V0 = 1.0
+
+    dt = 1.0 # timestep, seconds
+    t_end = 80./V0 # end time, seconds... 250 meter simulation
+        
+    model = pm.ParcelModel(initial_aerosols, V0, T0, S0, P0, console=False, accom=0.3)
+    parcel_trace, aerosol_traces = model.run(t_end, dt=dt, solver="cvode", terminate=True)
+        
+    # first largest
+    #print(parcel_trace['S'])
+    ind = parcel_trace['S'].argmax() - 1
+    parcel_trace['S'] = parcel_trace['S'].drop(ind)
+
+    # second largest
+    smax = np.array([parcel_trace['S'].max() * 100])
+    out_smax = np.expand_dims(smax, axis=1)
+    
+    print("\n Output Y size: ", out_smax.shape)
+
+    if save_output: 
+        return
+
+    print("\n ****** PARCEL MODEL ENDS... ******")
+
+    return out_smax
+
+########################################################
+########################################################
+
+########################################################
 def parcel_model(X):
 
     X_size = X.shape
@@ -119,6 +179,7 @@ def pyrcel_model(X):
     X_size = X.shape
     print('model input size:', X_size)
     print('X', X)
+    print('TYPE1', type(X))
 
     onedim_output = []
     smaxes = []
@@ -191,6 +252,7 @@ def model(X):
     X_size = X.shape
     print('model input size:', X_size)
     print('X', X)
+    print('TYPE2', type(X))
 
     onedim_output = []
     
